@@ -994,7 +994,7 @@
       }
     }
 
-    // FUNÇÃO DE IMPORTAÇÃO CORRIGIDA (Evita multiplicar valores por 100)
+    // FUNÇÃO DE IMPORTAÇÃO BLINDA (Trata números inteiros do Excel dividindo por 100 se necessário)
     function processarArquivoImportado() {
       const fileInput = document.getElementById('inputArquivoExcel');
       if (!fileInput.files.length) {
@@ -1039,40 +1039,42 @@
 
               const nome = String(pRow[idxNome]).trim();
               
-              // Leitura segura do estoque (inteiro correto)
-              let estoqueStr = String(pRow[idxEstoque] || '0').replace(',', '.');
-              const estoque = Math.round(parseFloat(estoqueStr) || 0);
+              // Estoque: lê número bruto e garante que não multiplique por 100
+              let estoqueRaw = pRow[idxEstoque];
+              let estoque = 0;
+              if (typeof estoqueRaw === 'number') {
+                estoque = Math.round(estoqueRaw);
+              } else if (estoqueRaw) {
+                let estStr = String(estoqueRaw).trim().replace(',', '.');
+                estoque = Math.round(parseFloat(estStr) || 0);
+              }
 
-              // Leitura segura do custo (mantém casas decimais reais)
+              // Custo: se o Excel salvar como número inteiro escalado por 100, ajustamos
               let custoRaw = pRow[idxCusto];
               let custo = 0;
               if (typeof custoRaw === 'number') {
-                custo = custoRaw;
+                custo = custoRaw > 1000 && custoRaw % 100 === 0 ? custoRaw / 100 : custoRaw;
               } else if (custoRaw) {
                 let custoStr = String(custoRaw).trim().replace('R$', '').replace(/\s/g, '');
-                if (custoStr.includes(',') && custoStr.includes('.')) {
-                  // Formato 1.000,00 -> remove ponto de milhar e troca vírgula por ponto
+                if (custoStr.includes(',')) {
                   custoStr = custoStr.replace(/\./g, '').replace(',', '.');
-                } else if (custoStr.includes(',')) {
-                  // Formato 101,4 -> troca vírgula por ponto
-                  custoStr = custoStr.replace(',', '.');
                 }
                 custo = parseFloat(custoStr) || 0;
+                if (custo > 1000 && custo % 100 === 0) custo = custo / 100;
               }
 
-              // Leitura segura do preço de venda
+              // Preço de Venda
               let precoRaw = pRow[idxPreco];
               let preco = 0;
               if (typeof precoRaw === 'number') {
-                preco = precoRaw;
+                preco = precoRaw > 1000 && precoRaw % 100 === 0 ? precoRaw / 100 : precoRaw;
               } else if (precoRaw) {
                 let precoStr = String(precoRaw).trim().replace('R$', '').replace(/\s/g, '');
-                if (precoStr.includes(',') && precoStr.includes('.')) {
+                if (precoStr.includes(',')) {
                   precoStr = precoStr.replace(/\./g, '').replace(',', '.');
-                } else if (precoStr.includes(',')) {
-                  precoStr = precoStr.replace(',', '.');
                 }
                 preco = parseFloat(precoStr) || 0;
+                if (preco > 1000 && preco % 100 === 0) preco = preco / 100;
               }
 
               if (nome && nome !== 'undefined') {
@@ -1140,7 +1142,7 @@
   </script>
 
   <footer class="text-center py-6 pb-24 text-[10px] font-medium text-zinc-500 dark:text-zinc-400/70 select-none relative z-10 transition-colors">
-    Desenvolvedor: <span class="font-bold text-zinc-700 dark:text-zinc-300">Murilo Andrade</span> <span class="text-teal-600 dark:text-teal-400/80 font-semibold">v3.11</span>
+    Desenvolvedor: <span class="font-bold text-zinc-700 dark:text-zinc-300">Murilo Andrade</span> <span class="text-teal-600 dark:text-teal-400/80 font-semibold">v3.12</span>
   </footer>
 </body>
 </html>
