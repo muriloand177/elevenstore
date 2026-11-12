@@ -1,0 +1,1127 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ElevenStore</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <link rel="apple-touch-icon" href="favicon.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Ativando o Modo Escuro customizável pelo Tailwind -->
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+    }
+  </script>
+  <!-- SheetJS para ler planilhas Excel (.xlsx e .csv) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Plus Jakarta Sans', sans-serif; }
+  </style>
+</head>
+<body class="bg-zinc-50 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 min-h-screen pb-28 antialiased relative overflow-x-hidden transition-colors duration-300">
+
+  <!-- TELA DE LOGIN -->
+  <div id="telaLogin" class="fixed inset-0 bg-zinc-900/90 dark:bg-black/90 backdrop-blur-md hidden items-center justify-center p-6 z-50">
+    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5">
+      <div class="text-center space-y-1">
+        <h2 class="text-xl font-extrabold text-zinc-900 dark:text-white">ElevenStore 🔒</h2>
+        <p class="text-xs text-zinc-500 dark:text-zinc-400">Entre com sua conta para acessar o sistema</p>
+      </div>
+      <form onsubmit="fazerLogin(event)" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">E-mail</label>
+          <input type="email" id="loginEmail" placeholder="seu@email.com" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Senha</label>
+          <input type="password" id="loginSenha" placeholder="••••••••" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-700 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+        </div>
+        <button type="submit" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition hover:opacity-90">Entrar no Sistema</button>
+      </form>
+      <div id="erroLogin" class="text-xs text-rose-500 text-center hidden"></div>
+    </div>
+  </div>
+
+  <!-- Marca d'água de fundo alternando entre as duas logos -->
+  <div class="absolute inset-0 flex items-center justify-center pointer-events-none z-0 overflow-hidden opacity-5 transition-opacity">
+    <div class="w-[350px] h-[350px] bg-contain bg-center bg-no-repeat block dark:hidden opacity-30" style="background-image: url('logo.png');"></div>
+    <div class="w-[350px] h-[350px] bg-contain bg-center bg-no-repeat hidden dark:block" style="background-image: url('logo-escuro.png');"></div>
+  </div>
+
+  <!-- Topo / Header -->
+  <header class="bg-white/95 dark:bg-zinc-800/95 backdrop-blur-md border-b border-zinc-200 dark:border-zinc-600/80 px-6 py-4 sticky top-0 z-30 transition-colors">
+    <div class="flex justify-between items-center max-w-md mx-auto">
+      <div class="flex items-center gap-3">
+        <!-- Logo Oficial no Cabeçalho (Troca automática) -->
+        <button onclick="trocarAba('abaResumo')" class="focus:outline-none hover:scale-105 active:scale-95 transition-transform" title="Voltar ao Início">
+          <img src="logo-claro.png" alt="ElevenStore" class="h-8 w-auto object-contain drop-shadow-sm block dark:hidden">
+          <img src="logo-escuro.png" alt="ElevenStore" class="h-8 w-auto object-contain drop-shadow-md hidden dark:block">
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <!-- Botão de Sair -->
+        <button onclick="fazerLogout()" class="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800/60 text-rose-600 dark:text-rose-400 hover:bg-rose-100 transition" title="Sair da Conta">
+          Sair
+        </button>
+        <!-- Botão de Troca de Tema -->
+        <button onclick="toggleTheme()" id="btnThemeToggle" class="text-[14px] px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-600 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition" title="Alternar Modo Claro/Escuro">
+          ☀️
+        </button>
+        <!-- Indicador de Status da Nuvem -->
+        <div id="statusNuvem" class="text-[10px] font-bold px-2.5 py-1.5 rounded-full bg-zinc-100 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 flex items-center gap-1.5 z-10 transition-colors">
+          <span id="nuvemDot" class="w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-500"></span>
+          <span id="nuvemTexto">Conectando...</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Conteúdo Principal -->
+  <main class="max-w-md mx-auto px-6 py-5 space-y-5 relative z-10">
+
+    <!-- ABA 1: RESUMO -->
+    <div id="abaResumo" class="space-y-5">
+      <!-- Seletor de Período e Seleção de Mês Específico -->
+      <div class="space-y-2">
+        <div class="flex bg-white dark:bg-zinc-800/90 p-1.5 rounded-2xl border border-zinc-200 dark:border-zinc-600/60 gap-1.5 transition-colors">
+          <button id="btnFiltroMes" onclick="setFiltroPeriodo('mes')" class="flex-1 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-orange-500 to-emerald-500 text-white shadow-md transition">Mês</button>
+          <button id="btnFiltroSemana" onclick="setFiltroPeriodo('semana')" class="flex-1 py-2 text-xs font-bold rounded-xl text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition">Semana</button>
+          <button id="btnFiltroDia" onclick="setFiltroPeriodo('dia')" class="flex-1 py-2 text-xs font-bold rounded-xl text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition">Hoje</button>
+        </div>
+
+        <div class="flex justify-between items-center gap-2 bg-white dark:bg-zinc-800/60 p-2.5 rounded-2xl border border-zinc-200 dark:border-zinc-600/50 transition-colors">
+          <label class="text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase">Mês de Referência:</label>
+          <input type="month" id="seletorMesAno" onchange="alterarMesSelecionado()" class="bg-zinc-50 dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-600 text-zinc-900 dark:text-white text-xs font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:border-emerald-500 transition-colors">
+        </div>
+      </div>
+
+      <!-- CARDS EXPANDIDOS DE CAIXA -->
+      <div class="grid grid-cols-2 gap-3.5">
+        <div class="bg-white dark:bg-zinc-800/90 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-600/70 shadow-sm dark:shadow-md flex flex-col justify-between min-h-[105px] transition-colors">
+          <p class="text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-wider leading-tight">Total Recebido</p>
+          <p id="totalRecebidoPeriodo" class="text-lg sm:text-xl font-extrabold text-zinc-900 dark:text-white mt-2 truncate">R$ 0,00</p>
+        </div>
+        <div class="bg-white dark:bg-zinc-800/90 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-600/70 shadow-sm dark:shadow-md flex flex-col justify-between min-h-[105px] transition-colors">
+          <p class="text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-wider leading-tight">Lucro Limpo</p>
+          <p id="totalLucroPeriodo" class="text-lg sm:text-xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2 truncate">R$ 0,00</p>
+        </div>
+      </div>
+
+      <!-- NOVO CARD: A RECEBER (FIADOS) -->
+      <div class="bg-amber-50 dark:bg-amber-900/20 p-4 rounded-2xl border border-amber-200 dark:border-amber-700/50 flex justify-between items-center shadow-sm dark:shadow-md transition-colors">
+        <div>
+          <p class="text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider">A Receber (Fiados)</p>
+          <p id="totalFiadoPeriodo" class="text-lg font-extrabold text-amber-600 dark:text-amber-400 mt-1">R$ 0,00</p>
+        </div>
+        <span class="text-2xl drop-shadow-sm">⏳</span>
+      </div>
+
+      <!-- BOTÃO DE FECHAMENTO DE MÊS -->
+      <div class="flex gap-2">
+        <button onclick="fecharMesAtual()" class="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 text-white font-extrabold text-xs py-3 rounded-2xl shadow-lg border border-emerald-400/30 transition flex items-center justify-center gap-2">
+          <span>🔒 Fechar Mês Selecionado</span>
+        </button>
+        <button onclick="openModal('modalHistoricoMeses')" class="bg-white dark:bg-zinc-800 hover:bg-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-700 dark:text-zinc-200 font-bold text-xs px-3.5 py-3 rounded-2xl transition">
+          📂 Histórico
+        </button>
+      </div>
+
+      <section class="bg-white dark:bg-zinc-800/90 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-600/70 shadow-sm dark:shadow-md transition-colors">
+        <h2 class="text-xs font-bold text-zinc-500 dark:text-zinc-300 tracking-wider uppercase mb-4 flex items-center gap-2">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 dark:bg-emerald-400"></span> Campeões de Lucro Limpo
+        </h2>
+        <div id="listaCampeoes" class="space-y-3.5"></div>
+      </section>
+
+      <section class="bg-white dark:bg-zinc-800/90 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-600/70 shadow-sm dark:shadow-md transition-colors">
+        <div class="flex justify-between items-center mb-2.5">
+          <h2 class="text-xs font-bold text-zinc-500 dark:text-zinc-300 tracking-wider uppercase flex items-center gap-2">
+            <span class="w-2 h-2 rounded-full bg-orange-500 dark:bg-orange-400"></span> Boletos a Pagar
+          </h2>
+          <span id="badgeBoletosPendentes" class="text-[10px] font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-300 border border-amber-200 dark:border-amber-500/40 px-2.5 py-0.5 rounded-full">0 pendentes</span>
+        </div>
+        <p id="resumoBoletosTexto" class="text-xs text-zinc-500 dark:text-zinc-300">Nenhum boleto cadastrado.</p>
+      </section>
+    </div>
+
+    <!-- ABA 2: ESTOQUE -->
+    <div id="abaEstoque" class="space-y-5 hidden">
+      <div class="flex justify-between items-center px-1">
+        <div>
+          <h2 class="text-lg font-extrabold text-zinc-900 dark:text-white">Estoque de Produtos</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-300">Gerencie e importe itens</p>
+        </div>
+        <div class="flex gap-2">
+          <button onclick="openModal('modalImportar')" class="bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-teal-500/50 text-teal-600 dark:text-teal-300 font-bold text-xs px-3 py-2.5 rounded-xl transition flex items-center gap-1 shadow-sm">
+            <span>📥 Importar</span>
+          </button>
+          <button onclick="openModal('modalProduto')" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 text-white font-bold text-xs px-3.5 py-2.5 rounded-xl transition shadow-md flex items-center gap-1">
+            <span>+ Novo</span>
+          </button>
+        </div>
+      </div>
+      <div id="listaEstoque" class="space-y-3.5"></div>
+    </div>
+
+    <!-- ABA 3: VENDAS -->
+    <div id="abaVendas" class="space-y-5 hidden">
+      <div class="flex justify-between items-center px-1">
+        <div>
+          <h2 class="text-lg font-extrabold text-zinc-900 dark:text-white">Vendas Realizadas</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-300">Histórico de pedidos e Lucro Limpo</p>
+        </div>
+        <button onclick="abrirModalVenda()" class="bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition shadow-md flex items-center gap-1">
+          <span>+ Nova Venda</span>
+        </button>
+      </div>
+      <div id="historicoVendas" class="space-y-3.5"></div>
+    </div>
+
+    <!-- ABA 4: FIADOS -->
+    <div id="abaFiados" class="space-y-5 hidden">
+      <div class="flex justify-between items-center px-1">
+        <div>
+          <h2 class="text-lg font-extrabold text-zinc-900 dark:text-white">Controle de Fiados</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-300">Clientes com contas pendentes</p>
+        </div>
+        <span id="badgeTotalFiado" class="text-xs font-bold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/80 border border-amber-200 dark:border-amber-600/50 px-3 py-1 rounded-xl transition-colors">
+          Devendo: R$ 0,00
+        </span>
+      </div>
+      <div id="listaFiados" class="space-y-3.5"></div>
+    </div>
+
+    <!-- ABA 5: BOLETOS -->
+    <div id="abaBoletos" class="space-y-5 hidden">
+      <div class="flex justify-between items-center px-1">
+        <div>
+          <h2 class="text-lg font-extrabold text-zinc-900 dark:text-white">Boletos & Contas</h2>
+          <p class="text-xs text-zinc-500 dark:text-zinc-300">Controle financeiro</p>
+        </div>
+        <button onclick="openModal('modalBoleto')" class="bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-zinc-600 text-zinc-800 dark:text-white font-bold text-xs px-4 py-2.5 rounded-xl transition flex items-center gap-1 shadow-sm">
+          <span>+ Novo Boleto</span>
+        </button>
+      </div>
+      <div id="listaBoletos" class="space-y-3.5"></div>
+    </div>
+
+  </main>
+
+  <!-- Navigation Bar -->
+  <nav class="fixed bottom-0 left-0 right-0 bg-white/95 dark:bg-zinc-800/95 backdrop-blur-lg border-t border-zinc-200 dark:border-zinc-600/80 py-3 px-3 flex justify-around max-w-md mx-auto z-20 transition-colors">
+    <button id="btnAbaResumo" onclick="trocarAba('abaResumo')" class="flex flex-col items-center text-emerald-600 dark:text-emerald-400 font-bold text-[10px] gap-1">
+      <span class="text-base">📊</span>
+      <span>Resumo</span>
+    </button>
+    <button id="btnAbaVendas" onclick="trocarAba('abaVendas')" class="flex flex-col items-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-[10px] transition gap-1">
+      <span class="text-base">🛍️</span>
+      <span>Vendas</span>
+    </button>
+    <button id="btnAbaEstoque" onclick="trocarAba('abaEstoque')" class="flex flex-col items-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-[10px] transition gap-1">
+      <span class="text-base">📦</span>
+      <span>Estoque</span>
+    </button>
+    <button id="btnAbaFiados" onclick="trocarAba('abaFiados')" class="flex flex-col items-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-[10px] transition gap-1">
+      <span class="text-base">📋</span>
+      <span>Fiados</span>
+    </button>
+    <button id="btnAbaBoletos" onclick="trocarAba('abaBoletos')" class="flex flex-col items-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-[10px] transition gap-1">
+      <span class="text-base">📄</span>
+      <span>Boletos</span>
+    </button>
+  </nav>
+
+  <!-- MODAL: Nova Venda -->
+  <div id="modalVenda" class="fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-6 z-50">
+    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 pb-3">
+        <h2 class="text-base font-extrabold text-zinc-900 dark:text-white flex items-center gap-2"><span>🛍️</span> Nova Venda</h2>
+        <button onclick="closeModal('modalVenda')" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <form onsubmit="salvarVenda(event)" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Produto</label>
+          <select id="selectProdutoVenda" onchange="atualizarValorSugeridoVenda()" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition"></select>
+        </div>
+        <div class="grid grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Qtd.</label>
+            <input type="number" id="qtdVenda" value="1" min="1" oninput="atualizarValorSugeridoVenda()" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Valor Total (R$)</label>
+            <input type="number" id="valorVenda" step="0.01" placeholder="0,00" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-emerald-600 dark:text-emerald-400 font-extrabold rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Forma de Pagamento</label>
+          <select id="pagamentoVenda" onchange="toggleClienteFiado()" class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+            <option value="Pix">Pix</option>
+            <option value="Cartão">Cartão</option>
+            <option value="Dinheiro">Dinheiro</option>
+            <option value="Fiado">Fiado (A Pagar)</option>
+          </select>
+        </div>
+        <div id="campoClienteFiado" class="hidden">
+          <label class="block text-[11px] font-bold text-amber-600 dark:text-amber-400 uppercase mb-1.5">Nome do Cliente (Fiado)</label>
+          <input type="text" id="clienteFiadoNome" placeholder="Ex: Maria das Graças" class="w-full bg-amber-50 dark:bg-zinc-900 border border-amber-300 dark:border-amber-500/60 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-amber-500 transition">
+        </div>
+        <div class="flex gap-2.5 pt-2">
+          <button type="button" onclick="closeModal('modalVenda')" class="w-1/2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold py-3.5 rounded-xl text-xs transition">Cancelar</button>
+          <button type="submit" class="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition">Confirmar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Importar Planilha -->
+  <div id="modalImportar" class="fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-6 z-50">
+    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 pb-3">
+        <h2 class="text-base font-extrabold text-zinc-900 dark:text-white flex items-center gap-2"><span>📥</span> Importar Planilha ou Backup</h2>
+        <button onclick="closeModal('modalImportar')" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <div class="space-y-3">
+        <p class="text-xs text-zinc-500 dark:text-zinc-300">
+          Selecione a sua <b class="text-zinc-800 dark:text-white">Planilha Excel (.xlsx/.csv)</b> exportada do app antigo para injetar e atualizar o estoque.
+        </p>
+        <div class="bg-zinc-50 dark:bg-zinc-900/80 p-3 rounded-xl border border-zinc-200 dark:border-zinc-700/60 text-[11px] text-zinc-500 dark:text-zinc-400 space-y-1">
+          <p class="font-bold text-zinc-800 dark:text-zinc-200">Colunas Compatíveis:</p>
+          <p>- Nome do Produto (ou Item / Descrição)</p>
+          <p>- Estoque (ou Qtd / Quantidade)</p>
+          <p>- Custo / Compra</p>
+          <p>- Venda / Preço</p>
+        </div>
+        <input type="file" id="inputArquivoExcel" accept=".xlsx, .xls, .csv" class="block w-full text-xs text-zinc-500 dark:text-zinc-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-teal-50 dark:file:bg-teal-900/80 file:text-teal-700 dark:file:text-teal-300 hover:file:bg-teal-100 dark:hover:file:bg-teal-800 cursor-pointer transition">
+      </div>
+      <div class="flex gap-2.5 pt-2">
+        <button type="button" onclick="closeModal('modalImportar')" class="w-1/2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold py-3.5 rounded-xl text-xs transition">Cancelar</button>
+        <button type="button" onclick="processarArquivoImportado()" class="w-1/2 bg-gradient-to-r from-teal-500 to-emerald-600 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition">Carregar Dados</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Novo Produto -->
+  <div id="modalProduto" class="fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-6 z-50">
+    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 pb-3">
+        <h2 class="text-base font-extrabold text-zinc-900 dark:text-white flex items-center gap-2"><span>📦</span> Cadastrar Produto</h2>
+        <button onclick="closeModal('modalProduto')" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <form onsubmit="salvarProduto(event)" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Nome do Produto</label>
+          <input type="text" id="nomeProduto" placeholder="Ex: Blusa Canelada Eleven" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+        </div>
+        <div class="grid grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Preço Custo (R$)</label>
+            <input type="number" id="custoProduto" step="0.01" placeholder="15,00" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-rose-600 dark:text-rose-400 font-semibold rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Preço Venda (R$)</label>
+            <input type="number" id="vendaProduto" step="0.01" placeholder="35,00" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-emerald-600 dark:text-emerald-400 font-bold rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Estoque Inicial</label>
+          <input type="number" id="estoqueProduto" placeholder="10" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+        </div>
+        <div class="flex gap-2.5 pt-2">
+          <button type="button" onclick="closeModal('modalProduto')" class="w-1/2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold py-3.5 rounded-xl text-xs transition">Cancelar</button>
+          <button type="submit" class="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition">Salvar Item</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Novo Boleto -->
+  <div id="modalBoleto" class="fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-6 z-50">
+    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 pb-3">
+        <h2 class="text-base font-extrabold text-zinc-900 dark:text-white flex items-center gap-2"><span>📄</span> Novo Boleto</h2>
+        <button onclick="closeModal('modalBoleto')" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <form onsubmit="salvarBoleto(event)" class="space-y-4">
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Descrição / Fornecedor</label>
+          <input type="text" id="descBoleto" placeholder="Ex: Fornecedor Tecidos" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+        </div>
+        <div class="grid grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Valor (R$)</label>
+            <input type="number" id="valorBoleto" step="0.01" placeholder="150,00" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-orange-600 dark:text-orange-400 font-bold rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Vencimento</label>
+            <input type="date" id="vencimentoBoleto" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+          </div>
+        </div>
+        <div class="flex gap-2.5 pt-2">
+          <button type="button" onclick="closeModal('modalBoleto')" class="w-1/2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold py-3.5 rounded-xl text-xs transition">Cancelar</button>
+          <button type="submit" class="w-1/2 bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition">Cadastrar Boleto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Histórico de Fechamentos Mensais -->
+  <div id="modalHistoricoMeses" class="fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-6 z-50">
+    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4 max-h-[85vh] overflow-y-auto">
+      <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 pb-3">
+        <h2 class="text-base font-extrabold text-zinc-900 dark:text-white flex items-center gap-2"><span>📂</span> Fechamentos Salvos</h2>
+        <button onclick="closeModal('modalHistoricoMeses')" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <div id="conteudoHistoricoMeses" class="space-y-3"></div>
+      <div class="pt-2">
+        <button type="button" onclick="closeModal('modalHistoricoMeses')" class="w-full bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold py-3.5 rounded-xl text-xs transition">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Gerenciamento de Tema (Claro/Escuro)
+    function initTheme() {
+      const isDark = localStorage.getItem('theme') !== 'light';
+      if (!isDark) {
+        document.documentElement.classList.remove('dark');
+        document.getElementById('btnThemeToggle').innerText = '🌙';
+      } else {
+        document.documentElement.classList.add('dark');
+        document.getElementById('btnThemeToggle').innerText = '☀️';
+      }
+    }
+    
+    function toggleTheme() {
+      if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+        document.getElementById('btnThemeToggle').innerText = '🌙';
+      } else {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+        document.getElementById('btnThemeToggle').innerText = '☀️';
+      }
+    }
+    
+    initTheme();
+
+    // CONFIGURAÇÃO DO SUPABASE (Insira suas chaves aqui)
+    const SUPABASE_URL = 'https://vleruzhdwhvrryszkaqc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZXJ1emhkd2h2cnJ5c3prYXFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzNDIxMDMsImV4cCI6MjEwNTkxODEwM30.DtccK8R6Qpxk9mMu1ig0dMrLtp0MXdLQG-aJ5BbnMw0';
+    
+    let supabaseClient = null;
+    if (SUPABASE_URL !== 'SUA_SUPABASE_URL_AQUI' && window.supabase) {
+      supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    let produtos = JSON.parse(localStorage.getItem('lojinha_produtos_v3')) || [];
+    let vendas = JSON.parse(localStorage.getItem('lojinha_vendas_v3')) || [];
+    let boletos = JSON.parse(localStorage.getItem('lojinha_boletos_v3')) || [];
+    let fechamentosMeses = JSON.parse(localStorage.getItem('lojinha_fechamentos_v3')) || [];
+    let filtroPeriodo = 'mes';
+
+    const hoje = new Date();
+    const anoAtualStr = hoje.getFullYear();
+    const mesAtualStr = String(hoje.getMonth() + 1).padStart(2, '0');
+    let mesAnoSelecionado = `${anoAtualStr}-${mesAtualStr}`;
+
+    document.getElementById('seletorMesAno').value = mesAnoSelecionado;
+
+    // Verificar sessão de Login
+    async function checarSessao() {
+      if (!supabaseClient) {
+        document.getElementById('telaLogin').classList.remove('hidden');
+        document.getElementById('telaLogin').classList.add('flex');
+        return;
+      }
+
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      
+      if (!session) {
+        document.getElementById('telaLogin').classList.remove('hidden');
+        document.getElementById('telaLogin').classList.add('flex');
+      } else {
+        document.getElementById('telaLogin').classList.remove('flex');
+        document.getElementById('telaLogin').classList.add('hidden');
+        sincronizarComNuvenInicial();
+      }
+    }
+
+    async function fazerLogin(e) {
+      e.preventDefault();
+      const email = document.getElementById('loginEmail').value;
+      const senha = document.getElementById('loginSenha').value;
+      const erroDiv = document.getElementById('erroLogin');
+
+      if (!supabaseClient) {
+        erroDiv.innerText = "Supabase não configurado.";
+        erroDiv.classList.remove('hidden');
+        return;
+      }
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: senha,
+      });
+
+      if (error) {
+        erroDiv.innerText = "E-mail ou senha incorretos.";
+        erroDiv.classList.remove('hidden');
+      } else {
+        erroDiv.classList.add('hidden');
+        checarSessao();
+      }
+    }
+
+    async function fazerLogout() {
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
+      }
+      location.reload();
+    }
+
+    async function sincronizarComNuvenInicial() {
+      if (!supabaseClient) {
+        atualizarStatusNuvem('offline', 'Modo Local');
+        renderizarTudo();
+        return;
+      }
+
+      atualizarStatusNuvem('sync', 'Sincronizando...');
+      try {
+        const { data, error } = await supabaseClient.from('elevenstore_dados').select('*').eq('id', 1).single();
+        
+        if (data) {
+          produtos = data.produtos || produtos;
+          vendas = data.vendas || vendas;
+          boletos = data.boletos || boletos;
+          fechamentosMeses = data.fechamentos || fechamentosMeses;
+          
+          localStorage.setItem('lojinha_produtos_v3', JSON.stringify(produtos));
+          localStorage.setItem('lojinha_vendas_v3', JSON.stringify(vendas));
+          localStorage.setItem('lojinha_boletos_v3', JSON.stringify(boletos));
+          localStorage.setItem('lojinha_fechamentos_v3', JSON.stringify(fechamentosMeses));
+          
+          atualizarStatusNuvem('online', 'Sincronizado');
+        } else {
+          await supabaseClient.from('elevenstore_dados').upsert({
+            id: 1,
+            produtos,
+            vendas,
+            boletos,
+            fechamentos: fechamentosMeses,
+            atualizado_em: new Date().toISOString()
+          });
+          atualizarStatusNuvem('online', 'Sincronizado');
+        }
+      } catch (err) {
+        console.error('Erro ao sincronizar com nuvem:', err);
+        atualizarStatusNuvem('error', 'Erro Nuvem');
+      }
+      renderizarTudo();
+
+      // Ativar Realtime para atualizar aparelhos automaticamente
+      supabaseClient
+        .channel('public:elevenstore_dados')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'elevenstore_dados' }, payload => {
+          if (payload.new) {
+            produtos = payload.new.produtos || [];
+            vendas = payload.new.vendas || [];
+            boletos = payload.new.boletos || [];
+            fechamentosMeses = payload.new.fechamentos || [];
+            renderizarTudo();
+          }
+        })
+        .subscribe();
+    }
+
+    async function salvarTudo() {
+      localStorage.setItem('lojinha_produtos_v3', JSON.stringify(produtos));
+      localStorage.setItem('lojinha_vendas_v3', JSON.stringify(vendas));
+      localStorage.setItem('lojinha_boletos_v3', JSON.stringify(boletos));
+      localStorage.setItem('lojinha_fechamentos_v3', JSON.stringify(fechamentosMeses));
+      renderizarTudo();
+
+      if (supabaseClient) {
+        atualizarStatusNuvem('sync', 'Salvando...');
+        try {
+          await supabaseClient.from('elevenstore_dados').upsert({
+            id: 1,
+            produtos,
+            vendas,
+            boletos,
+            fechamentos: fechamentosMeses,
+            atualizado_em: new Date().toISOString()
+          });
+          atualizarStatusNuvem('online', 'Sincronizado');
+        } catch (err) {
+          console.error('Erro ao salvar na nuvem:', err);
+          atualizarStatusNuvem('error', 'Erro ao Salvar');
+        }
+      }
+    }
+
+    function atualizarStatusNuvem(status, texto) {
+      const dot = document.getElementById('nuvemDot');
+      const txt = document.getElementById('nuvemTexto');
+      txt.innerText = texto;
+      if (status === 'online') {
+        dot.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+      } else if (status === 'sync') {
+        dot.className = 'w-2 h-2 rounded-full bg-amber-500 animate-spin';
+      } else if (status === 'error') {
+        dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+      } else {
+        dot.className = 'w-2 h-2 rounded-full bg-zinc-400 dark:bg-zinc-500';
+      }
+    }
+
+    function alterarMesSelecionado() {
+      mesAnoSelecionado = document.getElementById('seletorMesAno').value;
+      renderizarResumo();
+    }
+
+    function setFiltroPeriodo(periodo) {
+      filtroPeriodo = periodo;
+      ['btnFiltroMes', 'btnFiltroSemana', 'btnFiltroDia'].forEach(id => {
+        document.getElementById(id).className = 'flex-1 py-2 text-xs font-bold rounded-xl text-zinc-500 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white transition';
+      });
+      document.getElementById(idBtn(periodo)).className = 'flex-1 py-2 text-xs font-bold rounded-xl bg-gradient-to-r from-orange-500 to-emerald-500 text-white shadow-md transition';
+      renderizarResumo();
+    }
+
+    function idBtn(p) {
+      if(p==='mes') return 'btnFiltroMes';
+      if(p==='semana') return 'btnFiltroSemana';
+      return 'btnFiltroDia';
+    }
+
+    function filtrarVendasPorPeriodo() {
+      const [anoSel, mesSel] = mesAnoSelecionado.split('-').map(Number);
+      return vendas.filter(v => {
+        const dataVenda = new Date(v.dataIso);
+        if (filtroPeriodo === 'dia') {
+          return dataVenda.toDateString() === hoje.toDateString();
+        }
+        if (filtroPeriodo === 'semana') {
+          const seteDiasAtras = new Date(hoje);
+          seteDiasAtras.setDate(hoje.getDate() - 7);
+          return dataVenda >= seteDiasAtras;
+        }
+        return dataVenda.getMonth() + 1 === mesSel && dataVenda.getFullYear() === anoSel;
+      });
+    }
+
+    function renderizarResumo() {
+      const vendasFiltradas = filtrarVendasPorPeriodo();
+      
+      let totalRecebido = 0;
+      let totalLucroLimpo = 0;
+      let totalAReceber = 0;
+      const relatorio = {};
+
+      vendasFiltradas.forEach(v => {
+        let recebido = (v.pagamento === 'Fiado') ? (v.valorPagoFiado || 0) : v.valorTotal;
+        let pendente = v.valorTotal - recebido;
+        
+        let margemLucro = v.valorTotal > 0 ? (v.valorTotal - (v.custoUnitario * v.qtd)) / v.valorTotal : 0;
+        let lucroVenda = recebido * margemLucro;
+
+        totalRecebido += recebido;
+        totalAReceber += pendente;
+        totalLucroLimpo += lucroVenda;
+
+        if (recebido > 0) {
+          if(!relatorio[v.nomeProduto]) relatorio[v.nomeProduto] = { nome: v.nomeProduto, qtd: 0, lucro: 0 };
+          relatorio[v.nomeProduto].qtd += v.qtd;
+          relatorio[v.nomeProduto].lucro += lucroVenda;
+        }
+      });
+
+      document.getElementById('totalRecebidoPeriodo').innerText = `R$ ${totalRecebido.toFixed(2)}`;
+      document.getElementById('totalLucroPeriodo').innerText = `R$ ${totalLucroLimpo.toFixed(2)}`;
+      document.getElementById('totalFiadoPeriodo').innerText = `R$ ${totalAReceber.toFixed(2)}`;
+
+      const listaOrdenada = Object.values(relatorio).sort((a,b) => b.lucro - a.lucro);
+      const elCampeoes = document.getElementById('listaCampeoes');
+      elCampeoes.innerHTML = '';
+
+      if (listaOrdenada.length === 0) {
+        elCampeoes.innerHTML = `<p class="text-xs text-zinc-500 dark:text-zinc-300 py-2">Nenhum recebimento registrado neste período.</p>`;
+      } else {
+        listaOrdenada.forEach((p, idx) => {
+          elCampeoes.innerHTML += `
+            <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700/60 pb-3">
+              <div>
+                <p class="font-semibold text-sm text-zinc-800 dark:text-zinc-100">${idx + 1}º ${p.nome}</p>
+                <p class="text-[11px] text-zinc-500 dark:text-zinc-300 mt-0.5">${p.qtd} vendida(s)</p>
+              </div>
+              <div class="text-right">
+                <span class="text-emerald-600 dark:text-emerald-400 font-bold text-sm">R$ ${p.lucro.toFixed(2)}</span>
+                <p class="text-[9px] text-zinc-500 dark:text-zinc-400 uppercase">Lucro Limpo</p>
+              </div>
+            </div>
+          `;
+        });
+      }
+
+      const pendentes = boletos.filter(b => !b.pago);
+      document.getElementById('badgeBoletosPendentes').innerText = `${pendentes.length} pendentes`;
+      if(pendentes.length > 0) {
+        const totalPendente = pendentes.reduce((acc, b) => acc + b.valor, 0);
+        document.getElementById('resumoBoletosTexto').innerText = `Total pendente: R$ ${totalPendente.toFixed(2)}`;
+      } else {
+        document.getElementById('resumoBoletosTexto').innerText = `Todos os boletos estão em dia! 🎉`;
+      }
+
+      renderizarModalHistoricoMeses();
+    }
+
+    function fecharMesAtual() {
+      const [ano, mes] = mesAnoSelecionado.split('-');
+      const vendasMes = vendas.filter(v => {
+        const d = new Date(v.dataIso);
+        return d.getFullYear() === parseInt(ano) && d.getMonth() + 1 === parseInt(mes);
+      });
+
+      if (vendasMes.length === 0) {
+        alert('Não há vendas registradas no mês selecionado para fechar.');
+        return;
+      }
+
+      let totalRecebidoMes = 0;
+      let lucroLimpoMes = 0;
+      let fiadosPendentesMes = 0;
+
+      vendasMes.forEach(v => {
+        let recebido = (v.pagamento === 'Fiado') ? (v.valorPagoFiado || 0) : v.valorTotal;
+        let pendente = v.valorTotal - recebido;
+        let margem = v.valorTotal > 0 ? (v.valorTotal - (v.custoUnitario * v.qtd)) / v.valorTotal : 0;
+        
+        totalRecebidoMes += recebido;
+        lucroLimpoMes += (recebido * margem);
+        fiadosPendentesMes += pendente;
+      });
+
+      const totalCustoAbatido = totalRecebidoMes - lucroLimpoMes;
+
+      const novoFechamento = {
+        id: Date.now(),
+        mesAno: mesAnoSelecionado,
+        dataFechamentoIso: new Date().toISOString(),
+        totalVendido: totalRecebidoMes,
+        totalCusto: totalCustoAbatido,
+        lucroLimpo: lucroLimpoMes,
+        fiadosPendentes: fiadosPendentesMes,
+        totalQtdVendas: vendasMes.reduce((acc, v) => acc + v.qtd, 0)
+      };
+
+      fechamentosMeses = fechamentosMeses.filter(f => f.mesAno !== mesAnoSelecionado);
+      fechamentosMeses.push(novoFechamento);
+
+      salvarTudo();
+      alert(`Mês ${mes}/${ano} fechado com sucesso!\nValor Total Recebido: R$ ${totalRecebidoMes.toFixed(2)}\nLucro Limpo do Mês: R$ ${lucroLimpoMes.toFixed(2)}`);
+    }
+
+    function renderizarModalHistoricoMeses() {
+      const el = document.getElementById('conteudoHistoricoMeses');
+      el.innerHTML = '';
+
+      if (fechamentosMeses.length === 0) {
+        el.innerHTML = `<p class="text-xs text-zinc-500 dark:text-zinc-400 text-center py-6">Nenhum fechamento de mês realizado ainda.</p>`;
+        return;
+      }
+
+      fechamentosMeses.sort((a,b) => b.mesAno.localeCompare(a.mesAno)).forEach(f => {
+        const [ano, mes] = f.mesAno.split('-');
+        el.innerHTML += `
+          <div class="bg-zinc-50 dark:bg-zinc-900/90 p-4 rounded-2xl border border-emerald-500/30 space-y-2">
+            <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700/60 pb-2">
+              <span class="font-extrabold text-sm text-zinc-900 dark:text-white">Mês: ${mes}/${ano}</span>
+              <span class="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-950 px-2 py-0.5 rounded-md border border-emerald-300 dark:border-emerald-700/50">Fechado</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div>
+                <p class="text-zinc-500 dark:text-zinc-400 text-[10px]">Total Recebido</p>
+                <p class="font-extrabold text-zinc-900 dark:text-white">R$ ${f.totalVendido.toFixed(2)}</p>
+              </div>
+              <div>
+                <p class="text-zinc-500 dark:text-zinc-400 text-[10px]">Lucro Limpo</p>
+                <p class="font-extrabold text-emerald-600 dark:text-emerald-400">R$ ${f.lucroLimpo.toFixed(2)}</p>
+              </div>
+              <div>
+                <p class="text-zinc-500 dark:text-zinc-400 text-[10px]">Custo dos Produtos</p>
+                <p class="font-semibold text-rose-600 dark:text-rose-400">R$ ${f.totalCusto.toFixed(2)}</p>
+              </div>
+              <div>
+                <p class="text-zinc-500 dark:text-zinc-400 text-[10px]">Fiados Pendentes</p>
+                <p class="font-semibold text-amber-600 dark:text-amber-400">R$ ${f.fiadosPendentes.toFixed(2)}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function renderizarEstoque() {
+      const el = document.getElementById('listaEstoque');
+      el.innerHTML = '';
+      if (produtos.length === 0) {
+        el.innerHTML = `<div class="text-center py-12 bg-zinc-50 dark:bg-zinc-800/80 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-600 p-6"><span class="text-3xl">📦</span><p class="text-sm font-bold text-zinc-700 dark:text-zinc-200 mt-2">Nenhum produto cadastrado</p><p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">Importe uma planilha ou cadastre um novo item</p></div>`;
+        return;
+      }
+      produtos.forEach(p => {
+        el.innerHTML += `
+          <div class="bg-white dark:bg-zinc-800/90 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-600/70 space-y-3 shadow-sm dark:shadow-md transition-colors">
+            <div class="flex justify-between items-start">
+              <div>
+                <h3 class="font-bold text-zinc-800 dark:text-zinc-100 text-sm">${p.nome}</h3>
+                <p class="text-xs text-zinc-500 dark:text-zinc-300 mt-1">Custo: <span class="text-rose-600 dark:text-rose-400 font-semibold">R$ ${p.custo.toFixed(2)}</span> | Venda: <span class="text-emerald-600 dark:text-emerald-400 font-bold">R$ ${p.venda.toFixed(2)}</span></p>
+              </div>
+              <span class="bg-emerald-50 dark:bg-emerald-950/90 border border-emerald-200 dark:border-emerald-700/60 text-emerald-600 dark:text-emerald-300 font-extrabold text-xs px-3 py-1 rounded-full">Qtd: ${p.estoque}</span>
+            </div>
+            <div class="flex justify-between items-center pt-2.5 border-t border-zinc-200 dark:border-zinc-700/60">
+              <button onclick="excluirProduto(${p.id})" class="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-bold text-xs px-1">Excluir</button>
+              <div class="flex gap-2">
+                <button onclick="alterarEstoque(${p.id}, -1)" class="bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-200 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-500/60 transition">- Tirar 1</button>
+                <button onclick="alterarEstoque(${p.id}, 1)" class="bg-emerald-100 dark:bg-emerald-950 hover:bg-emerald-200 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700/60 transition">+ Adicionar 1</button>
+              </div>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function renderizarVendas() {
+      const el = document.getElementById('historicoVendas');
+      el.innerHTML = '';
+      if (vendas.length === 0) {
+        el.innerHTML = `<div class="text-center py-12 bg-zinc-50 dark:bg-zinc-800/80 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-600 p-6"><span class="text-3xl">🛍️</span><p class="text-sm font-bold text-zinc-700 dark:text-zinc-200 mt-2">Nenhuma venda realizada</p></div>`;
+        return;
+      }
+      vendas.slice().reverse().forEach(v => {
+        const recebido = v.pagamento === 'Fiado' ? (v.valorPagoFiado || 0) : v.valorTotal;
+        const margem = v.valorTotal > 0 ? (v.valorTotal - (v.custoUnitario * v.qtd)) / v.valorTotal : 0;
+        const lucroLimpoItem = recebido * margem;
+        
+        const statusFiado = v.pagamento === 'Fiado' ? (v.pagoFiado ? '<span class="text-xs font-bold text-emerald-600 dark:text-emerald-400">(Fiado Quitado)</span>' : '<span class="text-xs font-bold text-amber-600 dark:text-amber-400">(Fiado Pendente)</span>') : '';
+        
+        el.innerHTML += `
+          <div class="bg-white dark:bg-zinc-800/90 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-600/70 flex justify-between items-center shadow-sm dark:shadow-md transition-colors">
+            <div>
+              <p class="font-bold text-sm text-zinc-800 dark:text-zinc-100">${v.qtd}x ${v.nomeProduto}</p>
+              <p class="text-[11px] text-zinc-500 dark:text-zinc-300 mt-1">${v.dataStr} <span class="text-orange-500 dark:text-orange-400 font-semibold">${v.pagamento}</span> ${v.cliente ? `- <b>${v.cliente}</b>` : ''} ${statusFiado}</p>
+              <span class="inline-block mt-1.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/90 border border-emerald-200 dark:border-emerald-700/60 px-2 py-0.5 rounded-md">
+                Lucro Limpo: +R$ ${lucroLimpoItem.toFixed(2)}
+              </span>
+            </div>
+            <div class="text-right">
+              <p class="text-xs text-zinc-500 dark:text-zinc-400">Total Venda</p>
+              <p class="text-sm font-extrabold text-zinc-900 dark:text-white">R$ ${v.valorTotal.toFixed(2)}</p>
+              <button onclick="excluirVenda(${v.id})" class="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 text-xs font-semibold mt-2">Cancelar</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function renderizarFiados() {
+      const el = document.getElementById('listaFiados');
+      el.innerHTML = '';
+
+      const fiadosPendentes = vendas.filter(v => v.pagamento === 'Fiado' && !v.pagoFiado);
+      const totalFiado = fiadosPendentes.reduce((acc, v) => acc + (v.valorTotal - (v.valorPagoFiado || 0)), 0);
+      document.getElementById('badgeTotalFiado').innerText = `Devendo: R$ ${totalFiado.toFixed(2)}`;
+
+      if (fiadosPendentes.length === 0) {
+        el.innerHTML = `<div class="text-center py-12 bg-zinc-50 dark:bg-zinc-800/80 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-600 p-6"><span class="text-3xl">📋</span><p class="text-sm font-bold text-zinc-700 dark:text-zinc-200 mt-2">Nenhum fiado pendente!</p></div>`;
+        return;
+      }
+
+      const porCliente = {};
+      fiadosPendentes.forEach(v => {
+        const cliente = v.cliente || 'Cliente Não Identificado';
+        if (!porCliente[cliente]) porCliente[cliente] = [];
+        porCliente[cliente].push(v);
+      });
+
+      Object.entries(porCliente).forEach(([cliente, lista]) => {
+        const totalCliente = lista.reduce((acc, v) => acc + (v.valorTotal - (v.valorPagoFiado || 0)), 0);
+        
+        let listaItensHtml = '';
+        lista.forEach(item => {
+          const saldoItem = item.valorTotal - (item.valorPagoFiado || 0);
+          listaItensHtml += `
+            <div class="flex justify-between items-center text-xs text-zinc-600 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-900/60 p-2.5 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
+              <div>
+                <p class="font-semibold text-zinc-900 dark:text-white">${item.qtd}x ${item.nomeProduto}</p>
+                <p class="text-[10px] text-zinc-500 dark:text-zinc-400">${item.dataStr}</p>
+              </div>
+              <div class="text-right">
+                <span class="font-bold text-amber-600 dark:text-amber-400">R$ ${saldoItem.toFixed(2)}</span>
+              </div>
+            </div>
+          `;
+        });
+
+        el.innerHTML += `
+          <div class="bg-white dark:bg-zinc-800/90 p-5 rounded-2xl border border-amber-200 dark:border-amber-500/40 space-y-3 shadow-sm dark:shadow-md transition-colors">
+            <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700/80 pb-2.5">
+              <div>
+                <h3 class="font-extrabold text-zinc-900 dark:text-white text-base">${cliente}</h3>
+                <p class="text-[11px] text-zinc-500 dark:text-zinc-400">${lista.length} compra(s) pendente(s)</p>
+              </div>
+              <div class="text-right">
+                <p class="text-[10px] text-amber-600 dark:text-amber-300 font-bold uppercase">Devendo</p>
+                <p class="text-base font-extrabold text-amber-600 dark:text-amber-400">R$ ${totalCliente.toFixed(2)}</p>
+              </div>
+            </div>
+            <div class="space-y-2">
+              ${listaItensHtml}
+            </div>
+            <div class="pt-2 flex justify-end">
+              <button onclick="darBaixaFiadoCliente('${cliente}')" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition shadow-md">
+                ✓ Dar Baixa / Quitar
+              </button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function renderizarBoletos() {
+      const el = document.getElementById('listaBoletos');
+      el.innerHTML = '';
+      if (boletos.length === 0) {
+        el.innerHTML = `<div class="text-center py-12 bg-zinc-50 dark:bg-zinc-800/80 rounded-3xl border border-dashed border-zinc-300 dark:border-zinc-600 p-6"><span class="text-3xl">📄</span><p class="text-sm font-bold text-zinc-700 dark:text-zinc-200 mt-2">Nenhum boleto cadastrado</p></div>`;
+        return;
+      }
+      boletos.forEach(b => {
+        const [ano, mes, dia] = b.vencimento.split('-');
+        el.innerHTML += `
+          <div class="bg-white dark:bg-zinc-800/90 p-5 rounded-2xl border border-zinc-200 dark:border-zinc-600/70 space-y-3 shadow-sm dark:shadow-md transition-colors">
+            <div class="flex justify-between items-start">
+              <div>
+                <p class="font-bold text-sm text-zinc-800 dark:text-zinc-100">${b.descricao}</p>
+                <p class="text-xs text-zinc-500 dark:text-zinc-300 mt-1">Vence em: <span class="font-semibold text-zinc-700 dark:text-zinc-200">${dia}/${mes}/${ano}</span></p>
+              </div>
+              <span class="font-bold text-sm ${b.pago ? 'text-zinc-400 dark:text-zinc-500 line-through' : 'text-orange-600 dark:text-orange-400'}">R$ ${b.valor.toFixed(2)}</span>
+            </div>
+            <div class="flex justify-between items-center pt-2.5 border-t border-zinc-200 dark:border-zinc-700/60">
+              <button onclick="excluirBoleto(${b.id})" class="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 text-xs font-bold px-1">Excluir</button>
+              <button onclick="alternarStatusBoleto(${b.id})" class="px-3.5 py-1.5 rounded-xl text-xs font-bold ${b.pago ? 'bg-zinc-100 dark:bg-zinc-700 text-zinc-500 dark:text-zinc-300' : 'bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-700/60 hover:bg-emerald-100 dark:hover:bg-emerald-900'} transition">${b.pago ? '✓ Pago' : 'Marcar como Pago'}</button>
+            </div>
+          </div>
+        `;
+      });
+    }
+
+    function renderizarTudo() { renderizarResumo(); renderizarEstoque(); renderizarVendas(); renderizarFiados(); renderizarBoletos(); }
+
+    function toggleClienteFiado() {
+      const pg = document.getElementById('pagamentoVenda').value;
+      const campo = document.getElementById('campoClienteFiado');
+      if (pg === 'Fiado') {
+        campo.classList.remove('hidden');
+        document.getElementById('clienteFiadoNome').required = true;
+      } else {
+        campo.classList.add('hidden');
+        document.getElementById('clienteFiadoNome').required = false;
+      }
+    }
+
+    function salvarProduto(e) {
+      e.preventDefault();
+      produtos.push({ id: Date.now(), nome: document.getElementById('nomeProduto').value, custo: parseFloat(document.getElementById('custoProduto').value), venda: parseFloat(document.getElementById('vendaProduto').value), estoque: parseInt(document.getElementById('estoqueProduto').value) });
+      salvarTudo(); closeModal('modalProduto'); e.target.reset();
+    }
+
+    function excluirProduto(id) { if(confirm('Excluir este produto?')) { produtos = produtos.filter(p => p.id !== id); salvarTudo(); } }
+    function alterarEstoque(id, delta) { const p = produtos.find(item => item.id === id); if (p && p.estoque + delta >= 0) { p.estoque += delta; salvarTudo(); } }
+
+    function abrirModalVenda() {
+      const select = document.getElementById('selectProdutoVenda');
+      select.innerHTML = '<option value="">Selecione o produto...</option>';
+      produtos.forEach(p => select.innerHTML += `<option value="${p.id}">${p.nome} (Estoque: ${p.estoque})</option>`);
+      document.getElementById('pagamentoVenda').value = 'Pix';
+      toggleClienteFiado();
+      openModal('modalVenda');
+    }
+
+    function atualizarValorSugeridoVenda() {
+      const idProd = parseInt(document.getElementById('selectProdutoVenda').value);
+      const qtd = parseInt(document.getElementById('qtdVenda').value) || 1;
+      const p = produtos.find(item => item.id === idProd);
+      if(p) document.getElementById('valorVenda').value = (p.venda * qtd).toFixed(2);
+    }
+
+    function salvarVenda(e) {
+      e.preventDefault();
+      const idProd = parseInt(document.getElementById('selectProdutoVenda').value);
+      const qtd = parseInt(document.getElementById('qtdVenda').value);
+      const p = produtos.find(item => item.id === idProd);
+      const formaPg = document.getElementById('pagamentoVenda').value;
+      const nomeCliente = formaPg === 'Fiado' ? document.getElementById('clienteFiadoNome').value : '';
+
+      if (p && p.estoque >= qtd) {
+        p.estoque -= qtd;
+        const agora = new Date();
+        vendas.push({ 
+          id: Date.now(), 
+          produtoId: p.id, 
+          nomeProduto: p.nome, 
+          custoUnitario: p.custo, 
+          qtd: qtd, 
+          valorTotal: parseFloat(document.getElementById('valorVenda').value), 
+          pagamento: formaPg, 
+          cliente: nomeCliente,
+          pagoFiado: false,
+          valorPagoFiado: 0,
+          dataIso: agora.toISOString(), 
+          dataStr: agora.toLocaleDateString('pt-BR') 
+        });
+        salvarTudo(); closeModal('modalVenda'); e.target.reset();
+      } else { alert('Estoque insuficiente!'); }
+    }
+
+    function darBaixaFiadoCliente(cliente) {
+      const contas = vendas.filter(v => v.pagamento === 'Fiado' && !v.pagoFiado && v.cliente === cliente);
+      const totalDevido = contas.reduce((acc, v) => acc + (v.valorTotal - (v.valorPagoFiado || 0)), 0);
+
+      const valorRecebido = prompt(`Dar baixa de Fiado para ${cliente}.\nTotal devido: R$ ${totalDevido.toFixed(2)}\n\nDigite o valor pago:`, totalDevido.toFixed(2));
+      
+      if (valorRecebido !== null && !isNaN(parseFloat(valorRecebido))) {
+        let resto = parseFloat(valorRecebido);
+        
+        for (let v of contas) {
+          const saldoItem = v.valorTotal - (v.valorPagoFiado || 0);
+          if (resto >= saldoItem) {
+            resto -= saldoItem;
+            v.valorPagoFiado = v.valorTotal;
+            v.pagoFiado = true;
+          } else {
+            v.valorPagoFiado = (v.valorPagoFiado || 0) + resto;
+            resto = 0;
+            break;
+          }
+        }
+        salvarTudo();
+        alert('Baixa efetuada com sucesso!');
+      }
+    }
+
+    function excluirVenda(id) {
+      if(confirm('Cancelar esta venda?')) {
+        const v = vendas.find(item => item.id === id);
+        if(v) { const p = produtos.find(item => item.id === v.produtoId); if(p) p.estoque += v.qtd; }
+        vendas = vendas.filter(item => item.id !== id); salvarTudo();
+      }
+    }
+
+    function processarArquivoImportado() {
+      const fileInput = document.getElementById('inputArquivoExcel');
+      if (!fileInput.files.length) {
+        alert('Por favor, selecione um arquivo.');
+        return;
+      }
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+
+      reader.onload = function(e) {
+        const arrayBuffer = e.target.result;
+        const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const json = XLSX.utils.sheet_to_json(worksheet);
+
+        if (json.length === 0) {
+          alert('A planilha está vazia.');
+          return;
+        }
+
+        let adicionados = 0;
+        let atualizados = 0;
+
+        json.forEach(row => {
+          const keys = Object.keys(row);
+          const nomeKey = keys.find(k => /nome|produto|descricao|item/i.test(k));
+          const estoqueKey = keys.find(k => /estoque|qtd|quantidade/i.test(k));
+          const custoKey = keys.find(k => /custo|compra/i.test(k));
+          const vendaKey = keys.find(k => /venda|preco|preço/i.test(k));
+
+          const nome = nomeKey ? String(row[nomeKey]).trim() : null;
+          const estoque = estoqueKey ? parseInt(row[estoqueKey]) || 0 : 0;
+          const custo = custoKey ? parseFloat(String(row[custoKey]).replace(',', '.')) || 0 : 0;
+          const venda = vendaKey ? parseFloat(String(row[vendaKey]).replace(',', '.')) || 0 : 0;
+
+          if (nome) {
+            const prodExistente = produtos.find(p => p.nome.toLowerCase() === nome.toLowerCase());
+            if (prodExistente) {
+              prodExistente.estoque = estoque;
+              if (custo > 0) prodExistente.custo = custo;
+              if (venda > 0) prodExistente.venda = venda;
+              atualizados++;
+            } else {
+              produtos.push({
+                id: Date.now() + Math.floor(Math.random() * 1000),
+                nome: nome,
+                custo: custo,
+                venda: venda,
+                estoque: estoque
+              });
+              adicionados++;
+            }
+          }
+        });
+
+        salvarTudo();
+        closeModal('modalImportar');
+        fileInput.value = '';
+        alert(`Importação da planilha concluída!\nNovos produtos: ${adicionados}\nProdutos atualizados: ${atualizados}`);
+      };
+
+      reader.readAsArrayBuffer(file);
+    }
+
+    function salvarBoleto(e) {
+      e.preventDefault();
+      boletos.push({ id: Date.now(), descricao: document.getElementById('descBoleto').value, valor: parseFloat(document.getElementById('valorBoleto').value), vencimento: document.getElementById('vencimentoBoleto').value, pago: false });
+      salvarTudo(); closeModal('modalBoleto'); e.target.reset();
+    }
+
+    function alternarStatusBoleto(id) { const b = boletos.find(item => item.id === id); if(b) { b.pago = !b.pago; salvarTudo(); } }
+    function excluirBoleto(id) { if(confirm('Excluir este boleto?')) { boletos = boletos.filter(b => b.id !== id); salvarTudo(); } }
+
+    function openModal(id) { document.getElementById(id).classList.remove('hidden'); document.getElementById(id).classList.add('flex'); }
+    function closeModal(id) { document.getElementById(id).classList.remove('flex'); document.getElementById(id).classList.add('hidden'); }
+
+    function trocarAba(abaId) {
+      ['abaResumo', 'abaEstoque', 'abaVendas', 'abaFiados', 'abaBoletos'].forEach(id => document.getElementById(id).classList.add('hidden'));
+      document.getElementById(abaId).classList.remove('hidden');
+      const abasMap = { 'abaResumo': 'btnAbaResumo', 'abaVendas': 'btnAbaVendas', 'abaEstoque': 'btnAbaEstoque', 'abaFiados': 'btnAbaFiados', 'abaBoletos': 'btnAbaBoletos' };
+      
+      const classeInativa = 'flex flex-col items-center text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-300 text-[10px] transition gap-1';
+      const classeAtiva = 'flex flex-col items-center text-emerald-600 dark:text-emerald-400 font-bold text-[10px] gap-1';
+      
+      Object.values(abasMap).forEach(btnId => document.getElementById(btnId).className = classeInativa);
+      document.getElementById(abasMap[abaId]).className = classeAtiva;
+    }
+
+    // Inicializar verificação de sessão ao carregar a página
+    checarSessao();
+  </script>
+
+  <!-- Rodapé / Assinatura do Desenvolvedor -->
+  <footer class="text-center py-6 pb-24 text-[10px] font-medium text-zinc-500 dark:text-zinc-400/70 select-none relative z-10 transition-colors">
+    Desenvolvedor: <span class="font-bold text-zinc-700 dark:text-zinc-300">Murilo Andrade</span> <span class="text-teal-600 dark:text-teal-400/80 font-semibold">v3.10</span>
+  </footer>
+</body>
+</html>
