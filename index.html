@@ -139,7 +139,7 @@
       <div class="flex justify-between items-center px-1">
         <div>
           <h2 class="text-lg font-extrabold text-zinc-900 dark:text-white">Estoque de Produtos</h2>
-          <p class="text-xs text-zinc-500 dark:text-zinc-300">Gerencie e importe itens</p>
+          <p class="text-xs text-zinc-500 dark:text-zinc-300">Gerencie e edite itens</p>
         </div>
         <div class="flex gap-2">
           <button onclick="openModal('modalImportar')" class="bg-white dark:bg-zinc-800 hover:bg-zinc-50 dark:hover:bg-zinc-700 border border-teal-500/50 text-teal-600 dark:text-teal-300 font-bold text-xs px-3 py-2.5 rounded-xl transition flex items-center gap-1 shadow-sm">
@@ -216,6 +216,41 @@
       <span>Boletos</span>
     </button>
   </nav>
+
+  <!-- MODAL: Editar Produto -->
+  <div id="modalEditarProduto" class="fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-6 z-50">
+    <div class="bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center border-b border-zinc-200 dark:border-zinc-700 pb-3">
+        <h2 class="text-base font-extrabold text-zinc-900 dark:text-white flex items-center gap-2"><span>✏️</span> Editar Produto</h2>
+        <button onclick="closeModal('modalEditarProduto')" class="text-zinc-400 hover:text-zinc-700 dark:hover:text-white text-lg font-bold">✕</button>
+      </div>
+      <form onsubmit="salvarEdicaoProduto(event)" class="space-y-4">
+        <input type="hidden" id="editIdProduto">
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Nome do Produto</label>
+          <input type="text" id="editNomeProduto" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+        </div>
+        <div class="grid grid-cols-2 gap-3.5">
+          <div>
+            <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Preço Custo (R$)</label>
+            <input type="number" id="editCustoProduto" step="0.01" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-rose-600 dark:text-rose-400 font-semibold rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+          </div>
+          <div>
+            <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Preço Venda (R$)</label>
+            <input type="number" id="editVendaProduto" step="0.01" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-emerald-600 dark:text-emerald-400 font-bold rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+          </div>
+        </div>
+        <div>
+          <label class="block text-[11px] font-bold text-zinc-500 dark:text-zinc-300 uppercase mb-1.5">Estoque Atual</label>
+          <input type="number" id="editEstoqueProduto" required class="w-full bg-zinc-50 dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white rounded-xl p-3.5 text-sm focus:outline-none focus:border-emerald-500 transition">
+        </div>
+        <div class="flex gap-2.5 pt-2">
+          <button type="button" onclick="closeModal('modalEditarProduto')" class="w-1/2 bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-200 font-bold py-3.5 rounded-xl text-xs transition">Cancelar</button>
+          <button type="submit" class="w-1/2 bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-bold py-3.5 rounded-xl text-xs shadow-md transition">Salvar Alterações</button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- MODAL: Nova Venda -->
   <div id="modalVenda" class="fixed inset-0 bg-zinc-900/60 dark:bg-black/70 backdrop-blur-sm hidden items-center justify-center p-6 z-50">
@@ -384,11 +419,12 @@
     
     initTheme();
 
-    const SUPABASE_URL = 'SUA_SUPABASE_URL_AQUI';
-    const SUPABASE_ANON_KEY = 'SUA_SUPABASE_ANON_KEY_AQUI';
+    // CREDENCIAIS REAIS DO SUPABASE CONFIGURADAS:
+    const SUPABASE_URL = 'https://vleruzhdwhvrryszkaqc.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsZXJ1emhkd2h2cnJ5c3prYXFjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAzNDIxMDMsImV4cCI6MjEwNTkxODEwM30.DtccK8R6Qpxk9mMu1ig0dMrLtp0MXdLQG-aJ5BbnMw0';
     
     let supabaseClient = null;
-    if (SUPABASE_URL !== 'SUA_SUPABASE_URL_AQUI' && window.supabase) {
+    if (SUPABASE_URL && window.supabase) {
       supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
     }
 
@@ -469,10 +505,10 @@
         const { data, error } = await supabaseClient.from('elevenstore_dados').select('*').eq('id', 1).single();
         
         if (data) {
-          produtos = data.produtos || produtos;
-          vendas = data.vendas || vendas;
-          boletos = data.boletos || boletos;
-          fechamentosMeses = data.fechamentos || fechamentosMeses;
+          produtos = Array.isArray(data.produtos) ? data.produtos : [];
+          vendas = Array.isArray(data.vendas) ? data.vendas : [];
+          boletos = Array.isArray(data.boletos) ? data.boletos : [];
+          fechamentosMeses = Array.isArray(data.fechamentos) ? data.fechamentos : [];
           
           localStorage.setItem('lojinha_produtos_v3', JSON.stringify(produtos));
           localStorage.setItem('lojinha_vendas_v3', JSON.stringify(vendas));
@@ -501,10 +537,10 @@
         .channel('public:elevenstore_dados')
         .on('postgres_changes', { event: '*', schema: 'public', table: 'elevenstore_dados' }, payload => {
           if (payload.new) {
-            produtos = payload.new.produtos || [];
-            vendas = payload.new.vendas || [];
-            boletos = payload.new.boletos || [];
-            fechamentosMeses = payload.new.fechamentos || [];
+            produtos = Array.isArray(payload.new.produtos) ? payload.new.produtos : [];
+            vendas = Array.isArray(payload.new.vendas) ? payload.new.vendas : [];
+            boletos = Array.isArray(payload.new.boletos) ? payload.new.boletos : [];
+            fechamentosMeses = Array.isArray(payload.new.fechamentos) ? payload.new.fechamentos : [];
             renderizarTudo();
           }
         })
@@ -752,12 +788,15 @@
             <div class="flex justify-between items-start">
               <div>
                 <h3 class="font-bold text-zinc-800 dark:text-zinc-100 text-sm">${p.nome}</h3>
-                <p class="text-xs text-zinc-500 dark:text-zinc-300 mt-1">Custo: <span class="text-rose-600 dark:text-rose-400 font-semibold">R$ ${p.custo.toFixed(2)}</span> | Venda: <span class="text-emerald-600 dark:text-emerald-400 font-bold">R$ ${p.venda.toFixed(2)}</span></p>
+                <p class="text-xs text-zinc-500 dark:text-zinc-300 mt-1">Custo: <span class="text-rose-600 dark:text-rose-400 font-semibold">R$ ${Number(p.custo || 0).toFixed(2)}</span> | Venda: <span class="text-emerald-600 dark:text-emerald-400 font-bold">R$ ${Number(p.venda || 0).toFixed(2)}</span></p>
               </div>
               <span class="bg-emerald-50 dark:bg-emerald-950/90 border border-emerald-200 dark:border-emerald-700/60 text-emerald-600 dark:text-emerald-300 font-extrabold text-xs px-3 py-1 rounded-full">Qtd: ${p.estoque}</span>
             </div>
             <div class="flex justify-between items-center pt-2.5 border-t border-zinc-200 dark:border-zinc-700/60">
-              <button onclick="excluirProduto(${p.id})" class="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-bold text-xs px-1">Excluir</button>
+              <div class="flex gap-2">
+                <button onclick="abrirEditarProduto(${p.id})" class="text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 font-bold text-xs px-1">✏️ Editar</button>
+                <button onclick="excluirProduto(${p.id})" class="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-bold text-xs px-1">Excluir</button>
+              </div>
               <div class="flex gap-2">
                 <button onclick="alterarEstoque(${p.id}, -1)" class="bg-zinc-100 dark:bg-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-600 text-zinc-700 dark:text-zinc-200 text-xs font-bold px-3 py-1.5 rounded-lg border border-zinc-300 dark:border-zinc-500/60 transition">- Tirar 1</button>
                 <button onclick="alterarEstoque(${p.id}, 1)" class="bg-emerald-100 dark:bg-emerald-950 hover:bg-emerald-200 dark:hover:bg-emerald-900 text-emerald-700 dark:text-emerald-300 text-xs font-bold px-3 py-1.5 rounded-lg border border-emerald-300 dark:border-emerald-700/60 transition">+ Adicionar 1</button>
@@ -912,6 +951,31 @@
       salvarTudo(); closeModal('modalProduto'); e.target.reset();
     }
 
+    function abrirEditarProduto(id) {
+      const p = produtos.find(item => item.id === id);
+      if (!p) return;
+      document.getElementById('editIdProduto').value = p.id;
+      document.getElementById('editNomeProduto').value = p.nome;
+      document.getElementById('editCustoProduto').value = p.custo;
+      document.getElementById('editVendaProduto').value = p.venda;
+      document.getElementById('editEstoqueProduto').value = p.estoque;
+      openModal('modalEditarProduto');
+    }
+
+    function salvarEdicaoProduto(e) {
+      e.preventDefault();
+      const id = parseInt(document.getElementById('editIdProduto').value);
+      const p = produtos.find(item => item.id === id);
+      if (p) {
+        p.nome = document.getElementById('editNomeProduto').value;
+        p.custo = parseFloat(document.getElementById('editCustoProduto').value);
+        p.venda = parseFloat(document.getElementById('editVendaProduto').value);
+        p.estoque = parseInt(document.getElementById('editEstoqueProduto').value);
+        salvarTudo();
+        closeModal('modalEditarProduto');
+      }
+    }
+
     function excluirProduto(id) { if(confirm('Excluir este produto?')) { produtos = produtos.filter(p => p.id !== id); salvarTudo(); } }
     function alterarEstoque(id, delta) { const p = produtos.find(item => item.id === id); if (p && p.estoque + delta >= 0) { p.estoque += delta; salvarTudo(); } }
 
@@ -994,7 +1058,6 @@
       }
     }
 
-    // FUNÇÃO DE IMPORTAÇÃO BLINDA (Trata números inteiros do Excel dividindo por 100 se necessário)
     function processarArquivoImportado() {
       const fileInput = document.getElementById('inputArquivoExcel');
       if (!fileInput.files.length) {
@@ -1039,7 +1102,6 @@
 
               const nome = String(pRow[idxNome]).trim();
               
-              // Estoque: lê número bruto e garante que não multiplique por 100
               let estoqueRaw = pRow[idxEstoque];
               let estoque = 0;
               if (typeof estoqueRaw === 'number') {
@@ -1049,32 +1111,32 @@
                 estoque = Math.round(parseFloat(estStr) || 0);
               }
 
-              // Custo: se o Excel salvar como número inteiro escalado por 100, ajustamos
               let custoRaw = pRow[idxCusto];
               let custo = 0;
               if (typeof custoRaw === 'number') {
-                custo = custoRaw > 1000 && custoRaw % 100 === 0 ? custoRaw / 100 : custoRaw;
+                custo = custoRaw;
               } else if (custoRaw) {
                 let custoStr = String(custoRaw).trim().replace('R$', '').replace(/\s/g, '');
-                if (custoStr.includes(',')) {
+                if (custoStr.includes(',') && custoStr.includes('.')) {
                   custoStr = custoStr.replace(/\./g, '').replace(',', '.');
+                } else if (custoStr.includes(',')) {
+                  custoStr = custoStr.replace(',', '.');
                 }
                 custo = parseFloat(custoStr) || 0;
-                if (custo > 1000 && custo % 100 === 0) custo = custo / 100;
               }
 
-              // Preço de Venda
               let precoRaw = pRow[idxPreco];
               let preco = 0;
               if (typeof precoRaw === 'number') {
-                preco = precoRaw > 1000 && precoRaw % 100 === 0 ? precoRaw / 100 : precoRaw;
+                preco = precoRaw;
               } else if (precoRaw) {
                 let precoStr = String(precoRaw).trim().replace('R$', '').replace(/\s/g, '');
-                if (precoStr.includes(',')) {
+                if (precoStr.includes(',') && precoStr.includes('.')) {
                   precoStr = precoStr.replace(/\./g, '').replace(',', '.');
+                } else if (precoStr.includes(',')) {
+                  precoStr = precoStr.replace(',', '.');
                 }
                 preco = parseFloat(precoStr) || 0;
-                if (preco > 1000 && preco % 100 === 0) preco = preco / 100;
               }
 
               if (nome && nome !== 'undefined') {
@@ -1142,7 +1204,7 @@
   </script>
 
   <footer class="text-center py-6 pb-24 text-[10px] font-medium text-zinc-500 dark:text-zinc-400/70 select-none relative z-10 transition-colors">
-    Desenvolvedor: <span class="font-bold text-zinc-700 dark:text-zinc-300">Murilo Andrade</span> <span class="text-teal-600 dark:text-teal-400/80 font-semibold">v3.12</span>
+    Desenvolvedor: <span class="font-bold text-zinc-700 dark:text-zinc-300">Murilo Andrade</span> <span class="text-teal-600 dark:text-teal-400/80 font-semibold">v3.14</span>
   </footer>
 </body>
 </html>
